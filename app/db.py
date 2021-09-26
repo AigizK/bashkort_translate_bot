@@ -23,17 +23,17 @@ def get_raw_pair(id):
             print("Соединение с SQLite закрыто")
 
 
-def save_user_answer(id, answer, userid):
+def save_user_answer(id, answer, username, userid):
     try:
         sqlite_connection = sqlite3.connect('ba_ru_pairs.db')
         cursor = sqlite_connection.cursor()
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         sqlite_select_query = '''
-        insert into check_result(pair_id,result,author,date) values(?,?,?,?)'''
+        insert into check_result(pair_id,result,author,date,author_id) values(?,?,?,?,?)'''
 
         cursor.execute(sqlite_select_query,
-                       (int(id), int(answer), userid, dt_string))
+                       (int(id), int(answer), username, dt_string, userid))
         sqlite_connection.commit()
     except sqlite3.Error as error:
         print("Ошибка при подключении к sqlite", error)
@@ -41,6 +41,50 @@ def save_user_answer(id, answer, userid):
         if (sqlite_connection):
             sqlite_connection.close()
             print("Соединение с SQLite закрыто")
+
+
+def add_blocked_user(userid):
+    try:
+        sqlite_connection = sqlite3.connect('ba_ru_pairs.db')
+        cursor = sqlite_connection.cursor()
+        now = datetime.now()
+        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+        sqlite_select_query = '''
+        insert into user_is_blocked(user,date) values(?,?)'''
+
+        cursor.execute(sqlite_select_query, (userid, dt_string))
+        sqlite_connection.commit()
+    except sqlite3.Error as error:
+        print("Ошибка при подключении к sqlite", error)
+    finally:
+        if (sqlite_connection):
+            sqlite_connection.close()
+            print("Соединение с SQLite закрыто")
+
+
+def get_blocked_users():
+    results = []
+
+    try:
+        sqlite_connection = sqlite3.connect('ba_ru_pairs.db')
+        cursor = sqlite_connection.cursor()
+
+        sqlite_select_query = '''select distinct user from user_is_blocked'''
+
+        cursor.execute(sqlite_select_query)
+        records = cursor.fetchall()
+        for record in records:
+            results.append(record[0])
+
+        cursor.close()
+
+    except sqlite3.Error as error:
+        print("Ошибка при подключении к sqlite", error)
+    finally:
+        if (sqlite_connection):
+            sqlite_connection.close()
+            print("Соединение с SQLite закрыто")
+    return results
 
 
 def get_next_task():
@@ -132,15 +176,7 @@ def get_stat():
         sqlite_connection = sqlite3.connect('ba_ru_pairs.db')
         cursor = sqlite_connection.cursor()
 
-        sqlite_select_query = '''select count(*) from(select distinct author from check_result)'''
-
-        cursor.execute(sqlite_select_query)
-        record = cursor.fetchone()
-        uniq_author = record[0]
-
-        result = {
-            'author': uniq_author
-        }
+        result = {}
 
         sqlite_select_query = '''select count(*) from raw_pair'''
         cursor.execute(sqlite_select_query)
